@@ -1,3 +1,5 @@
+import { fetchWithAuth } from "@/services/authFetch";
+import { API_BASE_URL, BASE_URL } from "@/services/api";
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import {
@@ -9,7 +11,7 @@ import ChatSection from "@/components/ChatSection";
 import DocumentUploadSection from "@/components/Documents/DocumentUploadSection";
 import FlowBuilder from "@/components/FlowBuilder";
 
-const TABS = ["Profile", "Flow", "Tools", "Analytics", "Widget Branding", "History", "Test Chat", "Preview script", "Settings"];
+const ALL_TABS = ["Profile", "Flow", "Tools", "Analytics", "Widget Branding", "History", "Test Chat", "Preview script", "Settings"];
 
 export default function AgentDetailView({
   activeAgent,
@@ -24,11 +26,22 @@ export default function AgentDetailView({
   setRefreshKey,
   appView,
   setAppView,
-  showToast
+  showToast,
+  user
 }: any) {
   if (!activeAgent) return null;
   const [agentState, setAgentState] = React.useState(activeAgent || {});
   const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState(false);
+
+  let availableTabs = [...ALL_TABS];
+  if (user?.role === 'user') {
+    if (!user.can_manage_branding) {
+      availableTabs = availableTabs.filter(t => t !== "Widget Branding");
+    }
+    if (!user.can_manage_history) {
+      availableTabs = availableTabs.filter(t => t !== "History");
+    }
+  }
 
 
   // Widget Branding States
@@ -48,7 +61,7 @@ export default function AgentDetailView({
 
   React.useEffect(() => {
     if (activeAgent && activeTab === "History") {
-      fetch(`http://localhost:8000/api/agents/${activeAgent.id}/sessions`)
+      fetchWithAuth(`${API_BASE_URL}/agents/${activeAgent.id}/sessions`)
         .then(res => res.json())
         .then(data => {
           setHistorySessions(data || []);
@@ -62,7 +75,7 @@ export default function AgentDetailView({
 
   React.useEffect(() => {
     if (selectedSessionId && activeTab === "History") {
-      fetch(`http://localhost:8000/api/agents/sessions/${selectedSessionId}/messages`)
+      fetchWithAuth(`${API_BASE_URL}/agents/sessions/${selectedSessionId}/messages`)
         .then(res => res.json())
         .then(data => setSessionMessages(data || []))
         .catch(console.error);
@@ -72,7 +85,7 @@ export default function AgentDetailView({
   const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const res = await fetch(`http://localhost:8000/api/agents/sessions/${sessionId}`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/agents/sessions/${sessionId}`, {
         method: "DELETE"
       });
       if (res.ok) {
@@ -110,7 +123,7 @@ export default function AgentDetailView({
 
   React.useEffect(() => {
     if (activeAgent && activeTab === "Analytics") {
-      fetch(`http://localhost:8000/api/agents/${activeAgent.id}/analytics`)
+      fetchWithAuth(`${API_BASE_URL}/agents/${activeAgent.id}/analytics`)
         .then(res => res.json())
         .then(data => setAnalyticsData(data))
         .catch(console.error);
@@ -145,7 +158,7 @@ export default function AgentDetailView({
       logo_url: logoUrl
     };
     try {
-      await fetch(`http://localhost:8000/api/agents/${activeAgent.id}`, {
+      await fetchWithAuth(`${API_BASE_URL}/agents/${activeAgent.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -163,7 +176,7 @@ export default function AgentDetailView({
 
   const handleUpdateAgent = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/api/agents/${activeAgent.id}`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/agents/${activeAgent.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(agentState)
@@ -207,7 +220,7 @@ export default function AgentDetailView({
     setActiveAgent(updatedAgent);
 
     try {
-      await fetch(`http://localhost:8000/api/agents/${agentState.id}`, {
+      await fetchWithAuth(`${API_BASE_URL}/agents/${agentState.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tools: stringifiedTools })
@@ -232,17 +245,17 @@ export default function AgentDetailView({
 
             {/* Dynamic Agent Avatar */}
             <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-[#FF8A3D] to-[#E67E22] flex items-center justify-center shadow-lg shadow-[#FF8A3D]/20 border border-white/10">
-              <span className="text-white font-bold text-xl">{activeAgent.name.charAt(0).toUpperCase()}</span>
+              <span className="text-white font-bold text-xl">{activeAgent?.name?.charAt(0).toUpperCase() || 'A'}</span>
             </div>
 
             <div className="flex flex-col justify-center overflow-hidden">
               <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight align-middle truncate max-w-full" style={{ fontFamily: "var(--font-display)" }}>{activeAgent.name}</h2>
-                <span className={`px-2.5 py-1 text-[10px] font-bold tracking-wider rounded-md flex-shrink-0 ${activeAgent.status.toLowerCase() === 'disabled' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.1)]' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]'} uppercase`}>
-                  {activeAgent.status}
+                <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight align-middle truncate max-w-full" style={{ fontFamily: "var(--font-display)" }}>{activeAgent?.name || 'Unnamed Agent'}</h2>
+                <span className={`px-2.5 py-1 text-[10px] font-bold tracking-wider rounded-md flex-shrink-0 ${activeAgent?.status?.toLowerCase() === 'disabled' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.1)]' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]'} uppercase`}>
+                  {activeAgent?.status || 'Live'}
                 </span>
               </div>
-              <p className="text-xs md:text-sm text-slate-400 font-medium mt-0.5 truncate">{activeAgent.role}</p>
+              <p className="text-xs md:text-sm text-slate-400 font-medium mt-0.5 truncate">{activeAgent?.role || 'Agent Role'}</p>
             </div>
           </div>
           {/* <div className="hidden sm:flex items-center gap-4 bg-[#121826] px-4 py-2 rounded-full border border-white/5 transition-colors hover:bg-white/5 cursor-pointer hover:shadow-lg flex-shrink-0">
@@ -252,7 +265,7 @@ export default function AgentDetailView({
         </div>
 
         <div className="flex gap-2 border-b border-white/10 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-0 mt-2 md:mt-4 rounded-xl bg-white/5 p-1 px-2 border-0 w-full">
-          {TABS.map((tab) => (
+          {availableTabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -291,10 +304,10 @@ export default function AgentDetailView({
                   </div>
                   <span className="text-xs font-medium text-slate-500">HTML embed</span>
                 </div>
-                <pre className="text-sm text-emerald-400 font-mono overflow-x-auto whitespace-pre-wrap">{`<!-- Orqeva Agent Embedded Script -->\n<script src="http://localhost:8000/embed/widget.js" data-agent-id="${activeAgent?.id}" async defer></script>`}</pre>
+                <pre className="text-sm text-emerald-400 font-mono overflow-x-auto whitespace-pre-wrap">{`<!-- Orqeva Agent Embedded Script -->\n<script src="${BASE_URL}/embed/widget.js" data-agent-id="${activeAgent?.id}" async defer></script>`}</pre>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(`<!-- Orqeva Agent Embedded Script -->\n<script src="http://localhost:8000/embed/widget.js" data-agent-id="${activeAgent?.id}" async defer></script>`);
+                    navigator.clipboard.writeText(`<!-- Orqeva Agent Embedded Script -->\n<script src="${BASE_URL}/embed/widget.js" data-agent-id="${activeAgent?.id}" async defer></script>`);
                     showToast("Embed block securely copied to your clipboard!", "success");
                   }}
                   className="absolute top-4 right-4 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors opacity-0 group-hover:opacity-100 cursor-pointer backdrop-blur flex items-center gap-2"

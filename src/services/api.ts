@@ -1,7 +1,9 @@
 import { error } from "console";
 import { ChatMessage } from "@/app/types/chat";
+import { fetchWithAuth } from './authFetch';
 
-const BASE_URL = "http://localhost:8000";
+export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_BASE_URL = `${BASE_URL}/api`;
 
 
 export async function uploadPDF(file: File, agentId?: string) {
@@ -12,7 +14,7 @@ export async function uploadPDF(file: File, agentId?: string) {
         formData.append("agent_id", agentId);
     }
 
-    const response = await fetch(`${BASE_URL}/upload`, {
+    const response = await fetchWithAuth(`${BASE_URL}/upload`, {
         method: "POST",
         body: formData
     });
@@ -49,7 +51,7 @@ export interface DocumentsResponse {
 }
 
 export async function getDocuments(): Promise<string[]> {
-    const response = await fetch(`${BASE_URL}/documents`);
+    const response = await fetchWithAuth(`${BASE_URL}/documents`);
 
     if (!response.ok) {
         throw new Error("failed to fetch documents")
@@ -63,7 +65,7 @@ export async function getDocuments(): Promise<string[]> {
 export async function deleteDocument(
     filename: string
 ): Promise<void> {
-    const response = await fetch(`${BASE_URL}/documents/${encodeURIComponent(filename)}`,
+    const response = await fetchWithAuth(`${BASE_URL}/documents/${encodeURIComponent(filename)}`,
         {
             method: "DELETE",
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchWithAuth } from '@/services/authFetch';
 import { useState, useEffect, useRef } from "react";
 import ChatSection from "@/components/ChatSection";
 import DashboardView from "@/components/views/DashboardView";
@@ -12,14 +13,18 @@ import FlowBuilder from "@/components/FlowBuilder";
 import OnboardingView from "@/components/views/OnboardingView";
 import Head from "next/head";
 import { LayoutDashboard, Bot, Database, Blocks, Settings, Menu, ChevronLeft, Plus, X, Search, MoreVertical, Key, Network, Activity, Users, Puzzle, Code, Eye, Trash2, MessageSquare, Timer, AlertCircle } from "lucide-react";
+import SuperAdminView from "@/components/views/SuperAdminView";
+import { ShieldAlert, Users as UsersIcon, Building, FileSignature, Bot as BotIcon, Blocks as BlocksIcon, Bell } from "lucide-react";
+import TeamSettingsView from "@/components/views/TeamSettingsView";
+import NotificationsView from "@/components/views/NotificationsView";
 
 type Tab = "Profile" | "Flow" | "Tools" | "Analytics" | "Test Chat" | "Preview script" | "Settings";
-type AppView = "List" | "Agent" | "KnowledgeBase" | "Integrations" | "Dashboard" | "Settings";
+type AppView = "Dashboard" | "AgentDetail" | "Settings" | "List" | "Integrations" | "KnowledgeBase" | "Onboarding" | "Users" | "Workspaces" | "Access Requests" | "Global Agents" | "Global Integrations" | "Team" | "Notifications";
 
-const SIDEBAR_ITEMS = ["Dashboard", "My Agents", "Knowledge Base", "Integrations", "Settings"];
+const BASE_SIDEBAR_ITEMS = ["Dashboard", "My Agents", "Knowledge Base", "Integrations", "Settings"];
 const TABS: Tab[] = ["Profile", "Flow", "Tools", "Analytics", "Test Chat", "Preview script", "Settings"];
 
-const API_BASE_URL = "http://localhost:8000/api";
+import { API_BASE_URL } from "@/services/api";
 
 const RobotFace = () => {
   const headRef = useRef<HTMLDivElement>(null);
@@ -91,11 +96,14 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isQuotaModalOpen, setIsQuotaModalOpen] = useState(false);
+  const [quotaRequestMessage, setQuotaRequestMessage] = useState("");
+  const [quotaRequestAmount, setQuotaRequestAmount] = useState(10);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      fetch("http://localhost:8000/api/users/me", {
+      fetchWithAuth(`${API_BASE_URL}/users/me`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
         .then(res => {
@@ -136,6 +144,8 @@ export default function Home() {
   // Modal State
   const [newAgentName, setNewAgentName] = useState("");
   const [newAgentModel, setNewAgentModel] = useState("GPT-4o");
+  const [isUserQuotaRequestModalOpen, setIsUserQuotaRequestModalOpen] = useState(false);
+  const [userQuotaRequestMessage, setUserQuotaRequestMessage] = useState("");
   const [newAgentRole, setNewAgentRole] = useState("");
 
   // Integrations state
@@ -154,35 +164,37 @@ export default function Home() {
   }, [openDropdown]);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/agents/`)
+    fetchWithAuth(`${API_BASE_URL}/agents/`)
       .then(res => res.json())
       .then(data => setAgents(data))
       .catch(console.error);
 
-    fetch(`${API_BASE_URL}/metrics`)
+    fetchWithAuth(`${API_BASE_URL}/metrics`)
       .then(res => res.json())
       .then(data => setMetrics(data))
       .catch(console.error);
 
-    fetch(`${API_BASE_URL}/metrics/events`)
+    fetchWithAuth(`${API_BASE_URL}/metrics/events`)
       .then(res => res.json())
       .then(data => setEvents(data))
       .catch(console.error);
 
-    fetch(`${API_BASE_URL}/metrics/global_chart`)
+    fetchWithAuth(`${API_BASE_URL}/metrics/global_chart`)
       .then(res => res.json())
       .then(data => setGlobalChartData(data))
       .catch(console.error);
 
     // Fetch extensions
-    fetch(`${API_BASE_URL}/integrations/`)
+    fetchWithAuth(`${API_BASE_URL}/integrations/`)
       .then(res => res.json())
       .then(data => {
-        const keys = { ...apiKeys };
-        data.forEach((i: any) => {
-          if (keys[i.provider] !== undefined) keys[i.provider] = i.api_key;
-        });
-        setApiKeys(keys);
+        if (Array.isArray(data)) {
+            const keys = { ...apiKeys };
+            data.forEach((i: any) => {
+              if (keys[i.provider] !== undefined) keys[i.provider] = i.api_key;
+            });
+            setApiKeys(keys);
+        }
       })
       .catch(console.error);
   }, [appView]);
@@ -193,7 +205,13 @@ export default function Home() {
       case "My Agents": return <Bot className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />;
       case "Knowledge Base": return <Database className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />;
       case "Integrations": return <Blocks className="w-5 h-5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />;
+      case "Team": return <Users className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />;
       case "Settings": return <Settings className="w-5 h-5 transition-transform duration-500 group-hover:rotate-90" />;
+      case "Users": return <UsersIcon className="w-5 h-5 text-rose-500 transition-transform duration-300 group-hover:scale-110" />;
+      case "Workspaces": return <Building className="w-5 h-5 text-rose-500 transition-transform duration-300 group-hover:scale-110" />;
+      case "Access Requests": return <FileSignature className="w-5 h-5 text-rose-500 transition-transform duration-300 group-hover:scale-110" />;
+      case "Global Agents": return <BotIcon className="w-5 h-5 text-rose-500 transition-transform duration-300 group-hover:scale-110" />;
+      case "Global Integrations": return <BlocksIcon className="w-5 h-5 text-rose-500 transition-transform duration-300 group-hover:scale-110" />;
     }
   };
   const handleToggleTool = async (tool: string) => {
@@ -203,7 +221,7 @@ export default function Home() {
       const isEnabled = currentTools.includes(tool);
       const newTools = isEnabled ? currentTools.filter((t: string) => t !== tool) : [...currentTools, tool];
 
-      const res = await fetch(`http://localhost:8000/api/agents/${activeAgent.id}`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/agents/${activeAgent.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tools: JSON.stringify(newTools) })
@@ -231,12 +249,15 @@ export default function Home() {
     };
 
     try {
-      const res = await fetch(`${API_BASE_URL}/agents/`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/agents/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw data;
+      }
 
       const newAgent = {
         ...data,
@@ -251,10 +272,59 @@ export default function Home() {
       setNewAgentName("");
       setNewAgentRole("");
       setActiveAgent(newAgent);
-      setAppView("Agent");
-      setActiveTab("Test Chat");
-    } catch (error) {
+      setAppView("AgentDetail");
+    } catch (error: any) {
       console.error("Failed to create agent", error);
+      if (error.message === "Agent creation quota exceeded." || (error.detail && error.detail.includes("quota"))) {
+        setIsCreateModalOpen(false);
+        if (user?.role === 'user') {
+          showToast("Agent creation is restricted. Please contact your Workspace Admin to allocate quota to your account.", "error");
+        } else {
+          setIsQuotaModalOpen(true);
+        }
+      } else {
+        alert("Failed to create agent: " + (error.message || error.detail || error));
+      }
+    }
+  };
+
+  const handleRequestQuota = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/admin/requests/quota`, {
+        method: "POST",
+        body: JSON.stringify({ requested_quota: quotaRequestAmount, message: quotaRequestMessage })
+      });
+      if (res.ok) {
+        alert("Quota request submitted successfully!");
+        setIsQuotaModalOpen(false);
+      } else {
+        const data = await res.json();
+        alert(data.detail || "Failed to submit request.");
+      }
+    } catch (e: any) {
+      alert("Failed to submit request.");
+    }
+  };
+
+  const handleUserQuotaRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/workspace/requests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userQuotaRequestMessage, request_type: "quota" })
+      });
+      if (res.ok) {
+        showToast("Request submitted to your Workspace Admin successfully!", "success");
+        setIsUserQuotaRequestModalOpen(false);
+        setUserQuotaRequestMessage("");
+      } else {
+        const data = await res.json();
+        showToast(data.detail || "Failed to submit request.", "error");
+      }
+    } catch (e: any) {
+      showToast("Failed to submit request.", "error");
     }
   };
 
@@ -264,7 +334,7 @@ export default function Home() {
     if (!activeAgent) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/agents/${activeAgent.id}`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/agents/${activeAgent.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -289,7 +359,7 @@ export default function Home() {
 
   const handleDeleteAgent = async (agentId: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/agents/${agentId}`, { method: 'DELETE' });
+      const res = await fetchWithAuth(`${API_BASE_URL}/agents/${agentId}`, { method: 'DELETE' });
       if (res.ok) {
         setAgents(agents.filter(a => a.id !== agentId));
         if (activeAgent?.id === agentId) {
@@ -308,7 +378,7 @@ export default function Home() {
   const handleDeleteIntegration = async (provider: string) => {
     if (!window.confirm(`Remove ${provider} integration?`)) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/integrations/${provider}`, { method: 'DELETE' });
+      const res = await fetchWithAuth(`${API_BASE_URL}/integrations/${provider}`, { method: 'DELETE' });
       if (res.ok) {
         setApiKeys({ ...apiKeys, [provider]: "" });
       }
@@ -345,7 +415,7 @@ export default function Home() {
     }
 
     try {
-      await fetch(`${API_BASE_URL}/integrations/`, {
+      await fetchWithAuth(`${API_BASE_URL}/integrations/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider, api_key: key })
@@ -409,28 +479,68 @@ export default function Home() {
           </div> Orqeva™
         </div>
         <nav className="w-full px-4 flex flex-col gap-2 overflow-y-auto">
-          {SIDEBAR_ITEMS.map((item) => {
-            const isActive = appView === item || (item === "My Agents" && appView === "List") || (item === "Knowledge Base" && appView === "KnowledgeBase");
-            return (
-              <button
-                key={item}
-                onClick={() => {
-                  setIsMobileSidebarOpen(false);
-                  if (item === "Dashboard") setAppView("Dashboard");
-                  if (item === "My Agents") setAppView("List");
-                  if (item === "Knowledge Base") setAppView("KnowledgeBase");
-                  if (item === "Integrations") setAppView("Integrations");
-                  if (item === "Settings") setAppView("Settings");
-                }}
-                className={`group w-full text-left px-5 py-3.5 mb-1.5 rounded-2xl flex items-center gap-4 transition-all duration-300 cursor-pointer ${isActive ? "bg-white/[0.06] text-white font-bold shadow-lg shadow-black/20" : "text-slate-400 font-medium hover:bg-white/[0.03] hover:text-slate-200"}`}
-              >
-                <div className={`flex items-center justify-center ${isActive ? "text-indigo-400" : "text-slate-400 group-hover:text-[#FF8A3D]"} transition-colors duration-300`}>
-                  {getSidebarIcon(item)}
-                </div>
-                {item}
-              </button>
-            );
-          })}
+          {(() => {
+            let items = [...BASE_SIDEBAR_ITEMS];
+            
+            if (user?.role === "user") {
+                if (!user.can_manage_kb) {
+                    items = items.filter(i => i !== "Knowledge Base");
+                }
+                if (!user.can_manage_api_keys) {
+                    items = items.filter(i => i !== "Integrations");
+                }
+            }
+            
+            if (user?.role === "super_admin") {
+              items.push("Access Requests", "Users", "Workspaces", "Global Agents", "Global Integrations");
+            }
+            if (user?.role === "admin" || user?.role === "super_admin") {
+              items.push("Team");
+            }
+            if (user?.role === "admin") {
+              items.push("Notifications");
+            }
+            return items.map((item) => {
+              const isActive = appView === item || (item === "My Agents" && appView === "List") || (item === "Knowledge Base" && appView === "KnowledgeBase");
+              
+              // Handle super admin tabs being highlighted
+              const isSuperAdminTab = ["Users", "Workspaces", "Access Requests", "Global Agents", "Global Integrations", "Team"].includes(item);
+              
+              return (
+                <button
+                  key={item}
+                  onClick={() => {
+                    setIsMobileSidebarOpen(false);
+                    if (item === "Dashboard") setAppView("Dashboard");
+                    if (item === "My Agents") setAppView("List");
+                    if (item === "Knowledge Base") setAppView("KnowledgeBase");
+                    if (item === "Integrations") setAppView("Integrations");
+                    if (item === "Settings") setAppView("Settings");
+                    if (item === "Team") setAppView("Team");
+                    if (item === "Notifications") setAppView("Notifications");
+                    if (isSuperAdminTab && item !== "Team" && item !== "Notifications") setAppView(item as AppView);
+                  }}
+                  className={`group w-full text-left px-5 py-3.5 mb-1.5 rounded-2xl flex items-center gap-4 transition-all duration-300 cursor-pointer ${isActive ? "bg-white/[0.06] text-white font-bold shadow-lg shadow-black/20" : "text-slate-400 font-medium hover:bg-white/[0.03] hover:text-slate-200"}`}
+                >
+                  <div className={`flex items-center justify-center ${isActive ? (isSuperAdminTab ? "text-rose-400" : "text-indigo-400") : "text-slate-400 group-hover:text-[#FF8A3D]"} transition-colors duration-300`}>
+                    {item === "Dashboard" && <LayoutDashboard className="w-5 h-5" />}
+                    {item === "My Agents" && <Bot className="w-5 h-5" />}
+                    {item === "Knowledge Base" && <Database className="w-5 h-5" />}
+                    {item === "Integrations" && <Blocks className="w-5 h-5" />}
+                    {item === "Settings" && <Settings className="w-5 h-5" />}
+                    {item === "Team" && <UsersIcon className="w-5 h-5" />}
+                    {item === "Notifications" && <Bell className="w-5 h-5" />}
+                    {item === "Workspaces" && <Building className="w-5 h-5" />}
+                    {item === "Access Requests" && <FileSignature className="w-5 h-5" />}
+                    {item === "Global Agents" && <BotIcon className="w-5 h-5" />}
+                    {item === "Global Integrations" && <BlocksIcon className="w-5 h-5" />}
+                    {item === "Users" && <UsersIcon className="w-5 h-5" />}
+                  </div>
+                  {item}
+                </button>
+              );
+            });
+          })()}
         </nav>
         <div className="mt-auto pb-6 w-full flex flex-col items-center justify-center">
           {user ? (
@@ -470,6 +580,8 @@ export default function Home() {
             handleDeleteAgent={handleDeleteAgent}
             handleOpenAgent={handleOpenAgent}
             setIsCreateModalOpen={setIsCreateModalOpen}
+            user={user}
+            setIsUserQuotaRequestModalOpen={setIsUserQuotaRequestModalOpen}
           />
 
           {/* Create Agent Modal Overlay */}
@@ -539,6 +651,54 @@ export default function Home() {
               </div>
             </div>
           )}
+
+          {/* User Quota Request Modal */}
+          {isUserQuotaRequestModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out] p-4">
+              <div className="bg-[#0b0f19] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-6 border-b border-white/5 bg-white/[0.02]">
+                  <h2 className="text-xl font-bold text-white">Request Agent Quota</h2>
+                  <button onClick={() => setIsUserQuotaRequestModalOpen(false)} className="text-slate-400 hover:text-white transition-colors cursor-pointer">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                <form onSubmit={handleUserQuotaRequest} className="p-6 flex flex-col gap-5">
+                  <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
+                    <p className="text-sm text-indigo-200">
+                      You have reached your current agent allocation limit. Please submit a request to your Workspace Admin to increase your quota.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Message to Admin</label>
+                    <textarea
+                      required
+                      value={userQuotaRequestMessage}
+                      onChange={e => setUserQuotaRequestMessage(e.target.value)}
+                      placeholder="e.g. I need 2 more agents for the new marketing project."
+                      className="w-full h-32 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsUserQuotaRequestModalOpen(false)}
+                      className="px-5 py-2.5 rounded-xl font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium shadow-lg transition-all cursor-pointer"
+                    >
+                      Send Request
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </>
       ) : appView === "KnowledgeBase" ? (
         // --- KNOWLEDGE BASE VIEW ---
@@ -553,6 +713,12 @@ export default function Home() {
             />
           </div>
         </main>
+      ) : ["Users", "Workspaces", "Access Requests", "Global Agents", "Global Integrations"].includes(appView) ? (
+        <SuperAdminView currentTab={appView as any} />
+      ) : appView === "Team" ? (
+        <TeamSettingsView />
+      ) : appView === "Notifications" ? (
+        <NotificationsView />
       ) : appView === "Integrations" ? (
         // --- INTEGRATIONS VIEW ---
         <main className="flex-1 flex flex-col min-w-0 bg-[#050810] h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -600,6 +766,53 @@ export default function Home() {
                   </button>
                 </div>
               </div>
+
+              {/* Quota Modal */}
+              {isQuotaModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                  <div className="bg-[#050810] border border-white/10 p-8 rounded-3xl w-full max-w-md shadow-2xl relative">
+                    <button onClick={() => setIsQuotaModalOpen(false)} className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors">
+                      <X className="w-5 h-5" />
+                    </button>
+                    <div className="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mb-6">
+                      <ShieldAlert className="w-6 h-6" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: "var(--font-display)" }}>Agent Limit Reached</h2>
+                    <p className="text-slate-400 mb-8 text-sm">
+                      You have reached your maximum agent quota ({user?.max_agents || 5} agents). Would you like to request an increase from the platform administrator?
+                    </p>
+                    <form onSubmit={handleRequestQuota} className="flex flex-col gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Requested Total Quota</label>
+                        <input
+                          type="number"
+                          min={(user?.max_agents || 0) + 1}
+                          value={quotaRequestAmount}
+                          onChange={e => setQuotaRequestAmount(Number(e.target.value))}
+                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Reason</label>
+                        <textarea
+                          value={quotaRequestMessage}
+                          onChange={e => setQuotaRequestMessage(e.target.value)}
+                          placeholder="Why do you need more agents?"
+                          className="w-full h-24 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                          required
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="mt-2 w-full px-5 py-3.5 rounded-xl bg-white text-black font-bold text-sm shadow-lg hover:bg-slate-200 hover:-translate-y-0.5 transition-all"
+                      >
+                        Submit Request
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              )}
 
               {/* Groq Integration Card */}
               <div className="bg-[#0b0f19] border border-white/5 rounded-2xl p-6 shadow-xl flex flex-col gap-5 group hover:border-white/10 transition-colors">
@@ -695,6 +908,7 @@ export default function Home() {
           appView={appView}
           setAppView={setAppView}
           showToast={showToast}
+          user={user}
         />
       )}
 

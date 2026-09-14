@@ -7,7 +7,9 @@ export default function AgentListView({
     setOpenDropdown,
     handleDeleteAgent,
     handleOpenAgent,
-    setIsCreateModalOpen
+    setIsCreateModalOpen,
+    user,
+    setIsUserQuotaRequestModalOpen
 }: any) {
     return (
         <main className="flex-1 flex flex-col min-w-0 bg-[#050810] h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -19,7 +21,13 @@ export default function AgentListView({
                     </div>
 
                     <button
-                        onClick={() => setIsCreateModalOpen(true)}
+                        onClick={() => {
+                            if (user?.role === 'user' && agents.length >= (user?.max_agents || 0)) {
+                                setIsUserQuotaRequestModalOpen(true);
+                            } else {
+                                setIsCreateModalOpen(true);
+                            }
+                        }}
                         className="flex items-center gap-2 bg-[#FF8A3D] hover:brightness-110 active:scale-95 transition-all text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-[#8b5cf6]/20 cursor-pointer"
                     >
                         <Plus className="w-5 h-5" />

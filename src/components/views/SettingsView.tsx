@@ -1,3 +1,5 @@
+import { fetchWithAuth } from "@/services/authFetch";
+import { API_BASE_URL } from "@/services/api";
 import React, { useState } from 'react';
 import { Layout, Palette, Image as ImageIcon, CheckCircle2, AlertCircle, Camera, Shield, Key, User, Building, CreditCard, LogOut } from 'lucide-react';
 
@@ -22,7 +24,7 @@ export default function SettingsView({ user, setUser, showToast }: any) {
         e.preventDefault();
         setIsSavingProfile(true);
         try {
-            const res = await fetch('http://localhost:8000/api/user/update_profile', {
+            const res = await fetchWithAuth(`${API_BASE_URL}/user/update_profile`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: user.email, name })
@@ -45,7 +47,7 @@ export default function SettingsView({ user, setUser, showToast }: any) {
         e.preventDefault();
         setIsSaving(true);
         try {
-            const res = await fetch('http://localhost:8000/api/user/update_password', {
+            const res = await fetchWithAuth(`${API_BASE_URL}/user/update_password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: user.email, current_password: currentPassword, new_password: newPassword })
@@ -74,7 +76,7 @@ export default function SettingsView({ user, setUser, showToast }: any) {
         formData.append("email", user?.email);
 
         try {
-            const res = await fetch("http://localhost:8000/api/user/upload_avatar", {
+            const res = await fetchWithAuth(`${API_BASE_URL}/user/upload_avatar`, {
                 method: "POST",
                 body: formData
             });
@@ -108,15 +110,21 @@ export default function SettingsView({ user, setUser, showToast }: any) {
                             <Shield className={`w-4 h-4 ${activeTab === 'Security' ? 'text-[#FF8A3D]' : 'text-slate-500'}`} /> Security
                         </button>
 
-                        <button onClick={() => setActiveTab("Branding")} className={`flex items-center gap-3 w-auto md:w-full text-left px-4 py-3 rounded-xl transition-all cursor-pointer font-medium whitespace-nowrap ${activeTab === 'Branding' ? 'bg-[#FF8A3D]/10 text-[#FF8A3D]' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
-                            <Palette className={`w-4 h-4 ${activeTab === 'Branding' ? 'text-[#FF8A3D]' : 'text-slate-500'}`} /> Widget Branding
-                        </button>
-                        <button onClick={() => setActiveTab("Organization")} className={`flex items-center gap-3 w-auto md:w-full text-left px-4 py-3 rounded-xl transition-all cursor-pointer font-medium whitespace-nowrap ${activeTab === 'Organization' ? 'bg-[#FF8A3D]/10 text-[#FF8A3D]' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
-                            <Building className={`w-4 h-4 ${activeTab === 'Organization' ? 'text-[#FF8A3D]' : 'text-slate-500'}`} /> Organization
-                        </button>
-                        <button onClick={() => setActiveTab("Billing")} className={`flex items-center gap-3 w-auto md:w-full text-left px-4 py-3 rounded-xl transition-all cursor-pointer font-medium whitespace-nowrap ${activeTab === 'Billing' ? 'bg-[#FF8A3D]/10 text-[#FF8A3D]' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
-                            <CreditCard className={`w-4 h-4 ${activeTab === 'Billing' ? 'text-[#FF8A3D]' : 'text-slate-500'}`} /> Billing
-                        </button>
+                        {(user?.role === "admin" || user?.role === "super_admin" || user?.can_manage_branding) && (
+                            <button onClick={() => setActiveTab("Branding")} className={`flex items-center gap-3 w-auto md:w-full text-left px-4 py-3 rounded-xl transition-all cursor-pointer font-medium whitespace-nowrap ${activeTab === 'Branding' ? 'bg-[#FF8A3D]/10 text-[#FF8A3D]' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
+                                <Palette className={`w-4 h-4 ${activeTab === 'Branding' ? 'text-[#FF8A3D]' : 'text-slate-500'}`} /> Widget Branding
+                            </button>
+                        )}
+                        {user?.role === "super_admin" && (
+                            <>
+                                <button onClick={() => setActiveTab("Organization")} className={`flex items-center gap-3 w-auto md:w-full text-left px-4 py-3 rounded-xl transition-all cursor-pointer font-medium whitespace-nowrap ${activeTab === 'Organization' ? 'bg-[#FF8A3D]/10 text-[#FF8A3D]' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
+                                    <Building className={`w-4 h-4 ${activeTab === 'Organization' ? 'text-[#FF8A3D]' : 'text-slate-500'}`} /> Organization
+                                </button>
+                                <button onClick={() => setActiveTab("Billing")} className={`flex items-center gap-3 w-auto md:w-full text-left px-4 py-3 rounded-xl transition-all cursor-pointer font-medium whitespace-nowrap ${activeTab === 'Billing' ? 'bg-[#FF8A3D]/10 text-[#FF8A3D]' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
+                                    <CreditCard className={`w-4 h-4 ${activeTab === 'Billing' ? 'text-[#FF8A3D]' : 'text-slate-500'}`} /> Billing
+                                </button>
+                            </>
+                        )}
                     </div>
 
                     <div className="flex-1 p-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">

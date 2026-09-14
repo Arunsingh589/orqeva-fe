@@ -1,4 +1,6 @@
 "use client";
+import { fetchWithAuth } from "@/services/authFetch";
+import { API_BASE_URL } from "@/services/api";
 
 import React, { useCallback } from 'react';
 import {
@@ -158,7 +160,7 @@ export default function FlowBuilder({ agent, showToast }: { agent: any, showToas
     const handleSave = () => {
         console.log("Saving pipeline...", { nodes, edges });
         const payload = JSON.stringify({ nodes, edges });
-        fetch(`http://localhost:8000/api/agents/${agent.id}`, {
+        fetchWithAuth(`${API_BASE_URL}/agents/${agent.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ flow_config: payload })
