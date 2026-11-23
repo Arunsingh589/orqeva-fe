@@ -191,7 +191,7 @@ export default function Home() {
         if (Array.isArray(data)) {
             const keys = { ...apiKeys };
             data.forEach((i: any) => {
-              if (keys[i.provider] !== undefined) keys[i.provider] = i.api_key;
+              if (keys[i.provider] !== undefined) keys[i.provider] = i.masked_key || "";
             });
             setApiKeys(keys);
         }
@@ -409,8 +409,8 @@ export default function Home() {
 
   const handleSaveIntegration = async (provider: string) => {
     const key = apiKeys[provider];
-    if (!key || key.trim() === "") {
-      showToast(`Please add an API key for ${provider.toUpperCase()} first!`, "error");
+    if (!key || key.trim() === "" || key.includes("••••")) {
+      showToast(`Please add a valid new API key for ${provider.toUpperCase()} first!`, "error");
       return;
     }
 
